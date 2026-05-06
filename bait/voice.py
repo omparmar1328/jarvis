@@ -10,6 +10,7 @@ import io
 import tempfile
 import threading
 import subprocess
+from typing import Optional, List
 
 import speech_recognition as sr
 import requests
@@ -92,7 +93,7 @@ _recognizer.dynamic_energy_threshold = True
 _recognizer.pause_threshold = 0.8        # Seconds of silence to end phrase
 
 
-def listen(timeout: int = 8, phrase_limit: int = 12) -> str | None:
+def listen(timeout: int = 8, phrase_limit: int = 12) -> Optional[str]:
     """
     Listen from the microphone and return transcribed text.
     Returns None if nothing was heard or recognition failed.
@@ -118,7 +119,7 @@ def listen(timeout: int = 8, phrase_limit: int = 12) -> str | None:
             return None
 
 
-def is_wake_word(text: str, wake_words: list[str] = None) -> bool:
+def is_wake_word(text: str, wake_words: Optional[List[str]] = None) -> bool:
     """Check if transcribed text starts with a wake word."""
     if wake_words is None:
         wake_words = ["hey bait", "bait", "ok bait", "okay bait"]
@@ -126,7 +127,7 @@ def is_wake_word(text: str, wake_words: list[str] = None) -> bool:
     return any(text_lower.startswith(w) for w in wake_words)
 
 
-def strip_wake_word(text: str, wake_words: list[str] = None) -> str:
+def strip_wake_word(text: str, wake_words: Optional[List[str]] = None) -> str:
     """Remove the wake word prefix from the command."""
     if wake_words is None:
         wake_words = ["hey bait", "okay bait", "ok bait", "bait"]
