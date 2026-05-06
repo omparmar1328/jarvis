@@ -10,6 +10,7 @@ Model strategy:
 
 import json
 import re
+from typing import Optional, List
 import google.generativeai as genai
 from groq import Groq
 from openai import OpenAI  # OpenRouter is OpenAI-compatible
@@ -100,7 +101,7 @@ def classify_intent(user_message: str) -> str:
 
 # ── Tool Parser ────────────────────────────────────────────────────────────
 
-def _extract_json(text: str) -> dict | None:
+def _extract_json(text: str) -> Optional[dict]:
     """Extract the first JSON object from a response string."""
     try:
         # Direct parse
@@ -137,10 +138,10 @@ class BAITBrain:
     """
 
     def __init__(self):
-        self.history: list[dict] = []
+        self.history: List[dict] = []
         self.system_prompt = BAIT_PERSONA + "\n\n" + TOOL_DESCRIPTIONS
 
-    def _build_executor_messages(self, user_message: str) -> list[dict]:
+    def _build_executor_messages(self, user_message: str) -> List[dict]:
         """Build message list for the executor model."""
         messages = [{"role": "system", "content": self.system_prompt}]
         # Include last 6 turns for context (keep it lean for speed)
