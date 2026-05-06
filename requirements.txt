@@ -1,0 +1,13 @@
+groq
+google-generativeai
+openai
+requests
+python-dotenv
+SpeechRecognition
+pyaudio
+elevenlabs
+selenium
+webdriver-manager
+pyautogui
+Pillow
+rich
