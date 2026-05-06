@@ -17,13 +17,13 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  
 # Each task gets the fastest/cheapest model that can handle it.
 MODELS = {
     # Ultra-fast intent classification (decides WHAT to do)
-    "classifier":   "llama3-8b-8192",           # Groq  – fastest
+    "classifier":   "llama-3.1-8b-instant",      # Groq  – fastest (replaces llama3-8b-8192)
     # Tool execution & command reasoning
-    "executor":     "llama3-70b-8192",           # Groq  – powerful & fast
+    "executor":     "llama-3.3-70b-versatile",   # Groq  – powerful & fast (replaces llama3-70b-8192)
     # General conversation / chit-chat
-    "chat":         "gemini-1.5-flash",          # Gemini – large free quota
+    "chat":         "gemini-1.5-flash",           # Gemini – large free quota
     # Complex / multi-step reasoning (fallback)
-    "complex":      "anthropic/claude-3-haiku",  # OpenRouter – cheap Claude
+    "complex":      "anthropic/claude-3-haiku",   # OpenRouter – cheap Claude
 }
 
 BAIT_PERSONA = """You are BAIT – the user's elite personal AI assistant running on macOS.
