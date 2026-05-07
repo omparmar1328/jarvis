@@ -149,7 +149,6 @@ def _execute_tool_call(tool_name: str, args: dict) -> str:
     if fn is None:
         return f"⚠️ Unknown tool: {tool_name}"
     try:
-        print(f"[BAIT] Executing tool: {tool_name}({args})")
         return fn(**args)
     except Exception as e:
         return f"⚠️ Tool '{tool_name}' failed: {e}"
@@ -182,7 +181,6 @@ class BAITBrain:
         """
         # Step 1: Classify intent
         intent = classify_intent(user_message)
-        print(f"[BAIT] Intent: {intent}")
 
         raw_response = ""
         is_action = (intent == "action")
@@ -191,7 +189,6 @@ class BAITBrain:
             # Action path → Groq llama3-70b
             messages = self._build_executor_messages(user_message)
             raw_response = _call_groq(MODELS["executor"], messages, temperature=0.2)
-            print(f"[BAIT] Raw Action Response: {raw_response}")
         else:
             # Chat path → Gemini Flash (with Groq fallback)
             try:
@@ -201,11 +198,9 @@ class BAITBrain:
                     history_text += f"{role}: {turn['content']}\n"
                 history_text += f"User: {user_message}"
                 raw_response = _call_gemini(history_text)
-                print(f"[BAIT] Chat Response (Gemini): {raw_response}")
             except Exception:
                 messages = self._build_executor_messages(user_message)
                 raw_response = _call_groq(MODELS["executor"], messages, temperature=0.7)
-                print(f"[BAIT] Chat Response (Groq Fallback): {raw_response}")
 
         # Safety Net: Even if classified as 'chat', check if it returned a tool call
         tool_call = _extract_json(raw_response)

@@ -360,24 +360,33 @@ def play_youtube_video(query: str) -> str:
     """
     Search for a video on YouTube and automatically play the first result.
     """
-    search_youtube(query)
-    time.sleep(4.0) # Wait for page to load
+    # Append video filter to search query
+    search_youtube(query + " song")
     
-    # AppleScript to click the first video title in Chrome
-    # Uses a more robust JS snippet that checks for both list and grid views
+    # AppleScript that uses JS to poll for the video element and click it
     script = '''
     tell application "Google Chrome"
-        execute active tab of window 1 javascript "
-            var selectors = ['ytd-video-renderer a#video-title', 'ytd-grid-video-renderer a#video-title', 'a#video-title-link'];
-            for (var selector of selectors) {
-                var el = document.querySelector(selector);
-                if (el) { el.click(); break; }
-            }
-        "
+        activate
+        set found to false
+        set startTime to (current date)
+        
+        repeat while (found is false) and ((current date) - startTime < 10)
+            try
+                execute active tab of window 1 javascript "
+                    var sel = 'ytd-video-renderer a#video-title, ytd-grid-video-renderer a#video-title, a#video-title-link';
+                    var el = document.querySelector(sel);
+                    if (el) { el.click(); true; } else { false; }
+                "
+                if result is "true" then
+                    set found to true
+                end if
+            end try
+            if found is false then delay 0.5
+        end repeat
     end tell
     '''
     _run_applescript(script)
-    return f"🚀 Searching for '{query}' and playing the first result for you, Boss!"
+    return f"🚀 Finding and playing '{query}' on YouTube for you, Boss!"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
