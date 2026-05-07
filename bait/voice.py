@@ -23,7 +23,7 @@ from bait.config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
 # ─────────────────────────────────────────────────────────────────────────────
 
 ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
-
+_tts_lock = threading.Lock()  # Prevent overlapping audio playback
 _active_play_process = None
 
 def stop_speech():
