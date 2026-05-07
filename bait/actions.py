@@ -284,22 +284,22 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     
     script = f'''
     tell application "WhatsApp" to activate
-    delay 1.5
+    delay 2.0
     tell application "System Events"
         tell process "WhatsApp"
             set frontmost to true
             delay 0.5
             keystroke "f" using command down -- Focus search bar
-            delay 0.8
+            delay 1.0
             keystroke "{safe_contact}"
             delay 2.0
-            key code 125 -- Down arrow to highlight result
+            key code 48 -- Tab to move to list
             delay 0.5
-            key code 36 -- Return to select
-            delay 1.0
+            keystroke return -- Select contact
+            delay 1.5
             keystroke "{safe_message}"
             delay 0.5
-            key code 36 -- Return to send
+            keystroke return -- Send message
         end tell
     end tell
     '''
