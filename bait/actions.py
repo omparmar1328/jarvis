@@ -8,6 +8,7 @@ import webbrowser
 import urllib.parse
 import os
 import time
+from typing import List, Dict, Optional, Any
 
 
 # ─────────────────────────────────────────────────────────────────────────────
