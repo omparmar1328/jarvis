@@ -288,7 +288,11 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     tell application "System Events"
         set frontmost of process "WhatsApp" to true
         keystroke "n" using command down -- Open New Chat
-        delay 3.0
+        delay 2.0
+        key code 48 -- Tab 1
+        key code 48 -- Tab 2
+        key code 48 -- Tab 3
+        delay 1.0
         keystroke "{safe_contact}" -- Type name
         delay 2.0
         key code 36 -- Return to select
