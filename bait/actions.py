@@ -332,20 +332,25 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     tell application "System Events"
         set frontmost of process "WhatsApp" to true
         keystroke "n" using command down -- Open New Chat
-        delay 2.0
+        delay 2.5
+        
+        -- Slow down the Tabs to ensure each one registers
         key code 48 -- Tab 1
+        delay 0.3
         key code 48 -- Tab 2
+        delay 0.3
         key code 48 -- Tab 3
-        delay 1.0
-        keystroke "{safe_contact}" -- Type name
-        delay 2.0
-        key code 125 -- Down arrow
         delay 0.5
-        key code 36 -- Return
-        delay 2.0
+        
+        keystroke "{safe_contact}" -- Type name
+        delay 2.5
+        key code 125 -- Down arrow
+        delay 0.8
+        key code 36 -- Return to select
+        delay 2.5
         keystroke "{safe_message}" -- Type message
         delay 1.0
-        key code 36 -- Return
+        key code 36 -- Return to send
     end tell
     '''
     _run_applescript(script)
@@ -356,13 +361,19 @@ def play_youtube_video(query: str) -> str:
     Search for a video on YouTube and automatically play the first result.
     """
     search_youtube(query)
-    time.sleep(3.0) # Wait for page to load
+    time.sleep(4.0) # Wait for page to load
     
     # AppleScript to click the first video title in Chrome
-    # It uses JavaScript to find the first 'ytd-video-renderer' and click the thumbnail
+    # Uses a more robust JS snippet that checks for both list and grid views
     script = '''
     tell application "Google Chrome"
-        execute active tab of window 1 javascript "document.querySelector('ytd-video-renderer a#video-title, ytd-grid-video-renderer a#video-title').click();"
+        execute active tab of window 1 javascript "
+            var selectors = ['ytd-video-renderer a#video-title', 'ytd-grid-video-renderer a#video-title', 'a#video-title-link'];
+            for (var selector of selectors) {
+                var el = document.querySelector(selector);
+                if (el) { el.click(); break; }
+            }
+        "
     end tell
     '''
     _run_applescript(script)
