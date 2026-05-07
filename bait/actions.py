@@ -292,8 +292,10 @@ def send_whatsapp_message(contact: str, message: str) -> str:
             keystroke "f" using command down -- Focus search bar
             delay 0.8
             keystroke "{safe_contact}"
-            delay 1.5
-            key code 36 -- Return to select first search result
+            delay 2.0
+            key code 125 -- Down arrow to highlight result
+            delay 0.5
+            key code 36 -- Return to select
             delay 1.0
             keystroke "{safe_message}"
             delay 0.5
