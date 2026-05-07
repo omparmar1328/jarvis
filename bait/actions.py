@@ -276,7 +276,7 @@ def manage_chrome_tab(action: str, value: str = "") -> str:
 def send_whatsapp_message(contact: str, message: str) -> str:
     """
     Send a WhatsApp message to a contact using the native macOS app.
-    It searches for the contact name and types the message.
+    Uses the main search bar (Cmd+F) for better reliability.
     """
     # Escaping quotes for AppleScript
     safe_contact = contact.replace('"', '\\"')
@@ -289,11 +289,11 @@ def send_whatsapp_message(contact: str, message: str) -> str:
         tell process "WhatsApp"
             set frontmost to true
             delay 0.5
-            keystroke "n" using command down -- New chat
-            delay 1.0
+            keystroke "f" using command down -- Focus search bar
+            delay 0.8
             keystroke "{safe_contact}"
             delay 1.5
-            key code 36 -- Return to select contact
+            key code 36 -- Return to select first search result
             delay 1.0
             keystroke "{safe_message}"
             delay 0.5
