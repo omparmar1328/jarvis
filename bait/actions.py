@@ -295,6 +295,8 @@ def send_whatsapp_message(contact: str, message: str) -> str:
         delay 1.0
         keystroke "{safe_contact}" -- Type name
         delay 2.0
+        key code 125 -- Down arrow to move into the results list
+        delay 0.5
         key code 36 -- Return to select
         delay 2.0
         keystroke "{safe_message}" -- Type message
