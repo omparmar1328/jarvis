@@ -71,6 +71,8 @@ def open_application(app_name: str) -> str:
         "word":          "Microsoft Word",
         "excel":         "Microsoft Excel",
         "powerpoint":    "Microsoft PowerPoint",
+        "crunchyroll":   "Crunchyroll",
+        "netflix":       "Netflix",
     }
     resolved = aliases.get(app_name.lower().strip(), app_name)
     result = subprocess.run(["open", "-a", resolved], capture_output=True, text=True)
@@ -205,6 +207,52 @@ def get_system_info() -> str:
     return f"💻 System Info:\n{result.stdout.strip()}"
 
 
+def manage_chrome_tab(action: str, value: str = "") -> str:
+    """
+    Control the active tab in Google Chrome.
+    Actions: 'search_youtube', 'search_google', 'open_url', 'refresh', 'close', 'back', 'forward'
+    """
+    action = action.lower().strip()
+    
+    if action == "search_youtube":
+        encoded = urllib.parse.quote(value)
+        url = f"https://www.youtube.com/results?search_query={encoded}"
+        script = f'tell application "Google Chrome" to set URL of active tab of front window to "{url}"'
+        _run_applescript(script)
+        return f"Searching YouTube in current tab: {value}"
+        
+    elif action == "search_google":
+        encoded = urllib.parse.quote(value)
+        url = f"https://www.google.com/search?q={encoded}"
+        script = f'tell application "Google Chrome" to set URL of active tab of front window to "{url}"'
+        _run_applescript(script)
+        return f"Searching Google in current tab: {value}"
+
+    elif action == "open_url":
+        url = value if value.startswith("http") else "https://" + value
+        script = f'tell application "Google Chrome" to set URL of active tab of front window to "{url}"'
+        _run_applescript(script)
+        return f"Opened {url} in current tab."
+
+    elif action == "refresh":
+        _run_applescript('tell application "Google Chrome" to reload active tab of front window')
+        return "Refreshed current tab."
+
+    elif action == "close":
+        _run_applescript('tell application "Google Chrome" to close active tab of front window')
+        return "Closed current tab."
+
+    elif action == "back":
+        _run_applescript('tell application "Google Chrome" to go back active tab of front window')
+        return "Went back."
+
+    elif action == "forward":
+        _run_applescript('tell application "Google Chrome" to go forward active tab of front window')
+        return "Went forward."
+
+    return f"Unknown action: {action}"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # TOOL REGISTRY  (used by brain.py to tell the LLM what tools exist)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -225,6 +273,7 @@ TOOL_REGISTRY = {
     "list_running_apps": list_running_apps,
     "get_time":          get_current_time,
     "get_system_info":   get_system_info,
+    "manage_chrome_tab": manage_chrome_tab,
 }
 
 TOOL_DESCRIPTIONS = """
@@ -244,6 +293,9 @@ Available tools (you can call ONE per response, JSON only):
 - list_running_apps()              → List all open apps
 - get_time()                       → Current date & time
 - get_system_info()                → macOS version info
+- manage_chrome_tab(action, value) → Control CURRENT Chrome tab. Actions: 'search_youtube', 'search_google', 'open_url', 'refresh', 'close', 'back', 'forward'. Use 'value' for searches/URLs.
+
+Note: Always prioritize 'open_application' for native Mac apps (like Crunchyroll, Spotify, VS Code) if the user implies they have the app installed.
 
 If a task needs a tool, respond ONLY with valid JSON in this exact format:
 {"tool": "tool_name", "args": {"param1": "value1"}}
