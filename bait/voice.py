@@ -24,14 +24,28 @@ from bait.config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
 
 ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
 
-_tts_lock = threading.Lock()  # Prevent overlapping audio playback
+_active_play_process = None
 
+def stop_speech():
+    """Immediately stop any ongoing ElevenLabs/say playback."""
+    global _active_play_process
+    if _active_play_process:
+        try:
+            _active_play_process.terminate()
+            _active_play_process = None
+        except Exception:
+            pass
+    # Also kill any lingering afplay/say processes just in case
+    subprocess.run(["pkill", "-x", "afplay"], capture_output=True)
+    subprocess.run(["pkill", "-x", "say"], capture_output=True)
 
 def speak(text: str, blocking: bool = True) -> None:
     """
     Convert text to speech using ElevenLabs and play it.
     Falls back to macOS 'say' command if ElevenLabs is unavailable.
     """
+    global _active_play_process
+    
     if not ELEVENLABS_API_KEY:
         _fallback_speak(text)
         return
@@ -55,16 +69,18 @@ def speak(text: str, blocking: bool = True) -> None:
     url = ELEVENLABS_TTS_URL.format(voice_id=ELEVENLABS_VOICE_ID)
 
     def _play():
+        global _active_play_process
         with _tts_lock:
             try:
                 response = requests.post(url, json=payload, headers=headers, stream=True, timeout=15)
                 if response.status_code == 200:
-                    # Write audio to a temp file and play with afplay (macOS built-in)
                     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                         for chunk in response.iter_content(chunk_size=4096):
                             tmp.write(chunk)
                         tmp_path = tmp.name
-                    subprocess.run(["afplay", tmp_path], check=True)
+                    
+                    _active_play_process = subprocess.Popen(["afplay", tmp_path])
+                    _active_play_process.wait()
                     os.unlink(tmp_path)
                 else:
                     _fallback_speak(text)

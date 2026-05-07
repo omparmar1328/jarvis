@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""
-main.py – BAIT AI Assistant Entry Point
-========================================
-Usage:
-  python main.py            → Text mode (type commands)
-  python main.py --voice    → Voice mode (speak to BAIT)
-  python main.py --wake     → Always-on wake-word mode ("Hey BAIT")
-"""
-
+import os
 import sys
 import argparse
-import time
+
+# Suppress gRPC fork warnings and other noise
+os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
+os.environ["PYTHONWARNINGS"] = "ignore"
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text

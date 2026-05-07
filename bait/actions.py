@@ -356,6 +356,17 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     _run_applescript(script)
     return f"✅ WhatsApp message sent to {safe_contact} via fresh UI search."
 
+def stop_all_actions() -> str:
+    """
+    Immediately stop all ongoing automations and audio.
+    """
+    # Kill AppleScript runner
+    subprocess.run(["pkill", "-x", "osascript"], capture_output=True)
+    # Kill speech (redundant but safe)
+    subprocess.run(["pkill", "-x", "afplay"], capture_output=True)
+    subprocess.run(["pkill", "-x", "say"], capture_output=True)
+    return "🛑 All actions stopped, Boss."
+
 def play_youtube_video(query: str) -> str:
     """
     Search for a video on YouTube and automatically play the first result.
@@ -370,18 +381,33 @@ def play_youtube_video(query: str) -> str:
         set found to false
         set startTime to (current date)
         
-        repeat while (found is false) and ((current date) - startTime < 10)
+        repeat while (found is false) and ((current date) - startTime < 12)
             try
+                -- Exhaustive selector for YouTube titles/thumbnails
                 execute active tab of window 1 javascript "
-                    var sel = 'ytd-video-renderer a#video-title, ytd-grid-video-renderer a#video-title, a#video-title-link';
-                    var el = document.querySelector(sel);
-                    if (el) { el.click(); true; } else { false; }
+                    var selectors = [
+                        'ytd-video-renderer a#video-title', 
+                        'ytd-grid-video-renderer a#video-title', 
+                        'a#video-title-link', 
+                        '#video-title',
+                        'ytd-thumbnail a'
+                    ];
+                    var clicked = false;
+                    for (var sel of selectors) {
+                        var el = document.querySelector(sel);
+                        if (el && el.offsetHeight > 0) {
+                            el.click();
+                            clicked = true;
+                            break;
+                        }
+                    }
+                    clicked;
                 "
                 if result is "true" then
                     set found to true
                 end if
             end try
-            if found is false then delay 0.5
+            if found is false then delay 0.8
         end repeat
     end tell
     '''
@@ -412,6 +438,7 @@ TOOL_REGISTRY = {
     "manage_chrome_tab": manage_chrome_tab,
     "send_whatsapp":     send_whatsapp_message,
     "play_youtube":      play_youtube_video,
+    "stop_actions":      stop_all_actions,
 }
 
 TOOL_DESCRIPTIONS = """
@@ -420,6 +447,7 @@ Available tools (you can call ONE per response, JSON only):
 - search_google(query)             → Search Google in Chrome
 - search_youtube(query)            → Search YouTube in Chrome
 - play_youtube(query)             → Search AND automatically play the first video on YouTube
+- stop_actions()                   → Immediately stop all ongoing automations or speech (use for "Stop!", "Interrupt", "Shut up")
 - open_website(url)                → Open any URL in Chrome
 - search_chrome(query, platform)   → Smart search: platform = "google" | "youtube" | any URL
 - get_battery()                    → Check battery level
