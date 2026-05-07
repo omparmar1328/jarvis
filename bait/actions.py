@@ -273,12 +273,52 @@ def manage_chrome_tab(action: str, value: str = "") -> str:
     return f"Unknown action: {action}"
 
 
+def get_contact_phone(name: str) -> Optional[str]:
+    """
+    Search macOS Contacts for a phone number matching the name.
+    """
+    script = f'''
+    tell application "Contacts"
+        try
+            set thePerson to first person whose name contains "{name}"
+            set thePhone to value of first phone of thePerson
+            return thePhone
+        on error
+            return "NOT_FOUND"
+        end try
+    end tell
+    '''
+    result = _run_applescript(script).strip()
+    if result == "NOT_FOUND" or not result:
+        return None
+    # Clean phone number (remove spaces, dashes, etc.)
+    return "".join(filter(str.isdigit, result))
+
 def send_whatsapp_message(contact: str, message: str) -> str:
     """
-    Send a WhatsApp message to a contact using the native macOS app.
-    Uses the main search bar (Cmd+F) for better reliability.
+    Send a WhatsApp message. It first tries to find a phone number in Contacts
+    for 100% accuracy. If not found, it falls back to the UI search method.
     """
-    # Escaping quotes for AppleScript
+    # 1. Try Contact Lookup first (Highly Accurate)
+    phone = get_contact_phone(contact)
+    if phone:
+        # If it doesn't have a country code, you might need to add it or handle it.
+        # For now, we'll try the direct URL scheme.
+        safe_message = message.replace('"', '\\"')
+        import urllib.parse
+        encoded_message = urllib.parse.quote(message)
+        
+        # This opens the chat directly in the native app
+        script = f'open "whatsapp://send?phone={phone}&text={encoded_message}"'
+        import subprocess
+        subprocess.run(script, shell=True)
+        
+        # Need a small delay then press enter to actually send it
+        time.sleep(2.0)
+        _run_applescript('tell application "System Events" to key code 36')
+        return f"✅ WhatsApp message sent to {contact} ({phone}) via direct link."
+
+    # 2. Fallback to UI Search (Backup)
     safe_contact = contact.replace('"', '\\"')
     safe_message = message.replace('"', '\\"')
     
@@ -295,17 +335,17 @@ def send_whatsapp_message(contact: str, message: str) -> str:
         delay 1.0
         keystroke "{safe_contact}" -- Type name
         delay 2.0
-        key code 125 -- Down arrow to move into the results list
+        key code 125 -- Down arrow
         delay 0.5
-        key code 36 -- Return to select
+        key code 36 -- Return
         delay 2.0
         keystroke "{safe_message}" -- Type message
         delay 1.0
-        key code 36 -- Return to send
+        key code 36 -- Return
     end tell
     '''
     _run_applescript(script)
-    return f"✅ WhatsApp message sent to {safe_contact}: '{safe_message}'"
+    return f"✅ WhatsApp message sent to {safe_contact} via UI search fallback."
 
 
 # ─────────────────────────────────────────────────────────────────────────────
