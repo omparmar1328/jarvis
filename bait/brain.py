@@ -83,9 +83,26 @@ def _call_openrouter(messages: list, temperature: float = 0.4) -> str:
 
 # ── Intent Classifier ──────────────────────────────────────────────────────
 
-INTENT_PROMPT = """You are a command intent classifier. Given a user message, classify it as ONE of:
-- "action"     → The user wants to DO something on the Mac (open app, search, control system)
-- "chat"       → General conversation, question, or chitchat
+INTENT_PROMPT = """You are a highly accurate command intent classifier for a Mac AI assistant named BAIT.
+Classify the user message as ONE of these two categories:
+
+1. "action" → The user wants to PERFORM A TASK or CONTROL the system. 
+   Examples: 
+   - "open chrome"
+   - "send a message on whatsapp"
+   - "search for videos"
+   - "take a screenshot"
+   - "what's the battery level"
+   - "type 'hello world'"
+   - "close spotify"
+
+2. "chat" → The user is just TALKING, asking a general question, or seeking information.
+   Examples:
+   - "hello"
+   - "how are you?"
+   - "tell me a joke"
+   - "what is the capital of France?"
+   - "who are you?"
 
 Respond with ONLY one word: action OR chat"""
 
@@ -163,62 +180,59 @@ class BAITBrain:
         Main entry point. Routes the message, calls the right model,
         executes tools, and returns BAIT's final reply.
         """
-        # Step 1: Classify intent with the fastest model
+        # Step 1: Classify intent
         intent = classify_intent(user_message)
         print(f"[BAIT] Intent: {intent}")
 
-        if intent == "action":
-            # Step 2: Use Groq llama3-70b to decide which tool to call
+        raw_response = ""
+        is_action = (intent == "action")
+
+        if is_action:
+            # Action path → Groq llama3-70b
             messages = self._build_executor_messages(user_message)
             raw_response = _call_groq(MODELS["executor"], messages, temperature=0.2)
             print(f"[BAIT] Raw Action Response: {raw_response}")
-
-            # Step 3: Check if the response is a tool call (JSON)
-            tool_call = _extract_json(raw_response)
-
-            if tool_call and "tool" in tool_call:
-                tool_name = tool_call.get("tool", "")
-                args = tool_call.get("args", {})
-
-                # Step 4: Execute the tool
-                tool_result = _execute_tool_call(tool_name, args)
-
-                # Step 5: Generate a natural spoken reply from Groq about the result
-                confirm_messages = [
-                    {"role": "system", "content": BAIT_PERSONA},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"I asked you to: '{user_message}'\n"
-                            f"You executed: {tool_name}({args})\n"
-                            f"Result: {tool_result}\n\n"
-                            f"Give a short, natural spoken confirmation. No JSON. Keep it 1–2 sentences."
-                        )
-                    }
-                ]
-                spoken_reply = _call_groq(MODELS["executor"], confirm_messages, temperature=0.6)
-                bait_reply = spoken_reply
-
-            else:
-                # The executor gave a direct text response (no tool needed)
-                bait_reply = raw_response
-
         else:
-            # Conversation → Gemini Flash (free, big quota)
+            # Chat path → Gemini Flash (with Groq fallback)
             try:
-                # Build a prompt with recent history
                 history_text = ""
                 for turn in self.history[-4:]:
-                    role = "You" if turn["role"] == "assistant" else "User"
+                    role = "Assistant" if turn["role"] == "assistant" else "User"
                     history_text += f"{role}: {turn['content']}\n"
                 history_text += f"User: {user_message}"
-                bait_reply = _call_gemini(history_text)
-                print(f"[BAIT] Chat Response (Gemini): {bait_reply}")
+                raw_response = _call_gemini(history_text)
+                print(f"[BAIT] Chat Response (Gemini): {raw_response}")
             except Exception:
-                # Fallback to Groq if Gemini fails
                 messages = self._build_executor_messages(user_message)
-                bait_reply = _call_groq(MODELS["executor"], messages, temperature=0.7)
-                print(f"[BAIT] Chat Response (Groq Fallback): {bait_reply}")
+                raw_response = _call_groq(MODELS["executor"], messages, temperature=0.7)
+                print(f"[BAIT] Chat Response (Groq Fallback): {raw_response}")
+
+        # Safety Net: Even if classified as 'chat', check if it returned a tool call
+        tool_call = _extract_json(raw_response)
+
+        if tool_call and "tool" in tool_call:
+            tool_name = tool_call.get("tool", "")
+            args = tool_call.get("args", {})
+
+            # Execute the tool
+            tool_result = _execute_tool_call(tool_name, args)
+
+            # Generate natural confirmation
+            confirm_messages = [
+                {"role": "system", "content": BAIT_PERSONA},
+                {
+                    "role": "user",
+                    "content": (
+                        f"I asked you to: '{user_message}'\n"
+                        f"You executed: {tool_name}({args})\n"
+                        f"Result: {tool_result}\n\n"
+                        f"Give a short, natural spoken confirmation. No JSON. Keep it 1–2 sentences."
+                    )
+                }
+            ]
+            bait_reply = _call_groq(MODELS["executor"], confirm_messages, temperature=0.6)
+        else:
+            bait_reply = raw_response
 
         # Update history
         self.history.append({"role": "user",      "content": user_message})
