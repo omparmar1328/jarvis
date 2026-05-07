@@ -283,25 +283,19 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     safe_message = message.replace('"', '\\"')
     
     script = f'''
-    tell application "WhatsApp"
-        activate
-        reopen
-    end tell
+    tell application "WhatsApp" to activate
     delay 2.0
     tell application "System Events"
-        tell process "WhatsApp"
-            set frontmost to true
-            delay 1.0
-            keystroke "n" using command down -- New chat modal
-            delay 1.5
-            keystroke "{safe_contact}"
-            delay 2.0
-            key code 36 -- Return to select contact
-            delay 1.5
-            keystroke "{safe_message}"
-            delay 1.0
-            key code 36 -- Return to send
-        end tell
+        set frontmost of process "WhatsApp" to true
+        keystroke "n" using command down -- Open New Chat
+        delay 3.0
+        keystroke "{safe_contact}" -- Type name
+        delay 2.0
+        key code 36 -- Return to select
+        delay 2.0
+        keystroke "{safe_message}" -- Type message
+        delay 1.0
+        key code 36 -- Return to send
     end tell
     '''
     _run_applescript(script)
