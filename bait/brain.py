@@ -108,11 +108,13 @@ def _extract_json(text: str) -> Optional[dict]:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Find embedded JSON
-    match = re.search(r'\{[^{}]+\}', text, re.DOTALL)
+    # Find embedded JSON (outermost match)
+    match = re.search(r'(\{.*\})', text, re.DOTALL)
     if match:
         try:
-            return json.loads(match.group())
+            # Try to parse the match. If it's still not valid, 
+            # it might be too greedy, but for tool calls it's usually correct.
+            return json.loads(match.group(1))
         except json.JSONDecodeError:
             pass
     return None
