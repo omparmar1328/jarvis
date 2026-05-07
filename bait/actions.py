@@ -297,35 +297,38 @@ def get_contact_phone(name: str) -> Optional[str]:
 
 def send_whatsapp_message(contact: str, message: str) -> str:
     """
-    Send a WhatsApp message. It first tries to find a phone number in Contacts
-    for 100% accuracy. If not found, it falls back to the UI search method.
+    Send a WhatsApp message. For reliability, it quits and re-opens WhatsApp
+    to ensure the UI is in a 'fresh' state for the Tab sequence.
     """
     # 1. Try Contact Lookup first (Highly Accurate)
     phone = get_contact_phone(contact)
     if phone:
-        # If it doesn't have a country code, you might need to add it or handle it.
-        # For now, we'll try the direct URL scheme.
         safe_message = message.replace('"', '\\"')
         import urllib.parse
         encoded_message = urllib.parse.quote(message)
         
-        # This opens the chat directly in the native app
+        # Kill and reopen to be 100% sure
+        subprocess.run(["pkill", "-x", "WhatsApp"], capture_output=True)
+        time.sleep(1.0)
+        
         script = f'open "whatsapp://send?phone={phone}&text={encoded_message}"'
-        import subprocess
         subprocess.run(script, shell=True)
         
-        # Need a small delay then press enter to actually send it
-        time.sleep(2.0)
+        time.sleep(3.0)
         _run_applescript('tell application "System Events" to key code 36')
         return f"✅ WhatsApp message sent to {contact} ({phone}) via direct link."
 
     # 2. Fallback to UI Search (Backup)
+    # Force quit for fresh state
+    subprocess.run(["pkill", "-x", "WhatsApp"], capture_output=True)
+    time.sleep(1.0)
+    
     safe_contact = contact.replace('"', '\\"')
     safe_message = message.replace('"', '\\"')
     
     script = f'''
     tell application "WhatsApp" to activate
-    delay 2.0
+    delay 3.0
     tell application "System Events"
         set frontmost of process "WhatsApp" to true
         keystroke "n" using command down -- Open New Chat
@@ -346,7 +349,24 @@ def send_whatsapp_message(contact: str, message: str) -> str:
     end tell
     '''
     _run_applescript(script)
-    return f"✅ WhatsApp message sent to {safe_contact} via UI search fallback."
+    return f"✅ WhatsApp message sent to {safe_contact} via fresh UI search."
+
+def play_youtube_video(query: str) -> str:
+    """
+    Search for a video on YouTube and automatically play the first result.
+    """
+    search_youtube(query)
+    time.sleep(3.0) # Wait for page to load
+    
+    # AppleScript to click the first video title in Chrome
+    # It uses JavaScript to find the first 'ytd-video-renderer' and click the thumbnail
+    script = '''
+    tell application "Google Chrome"
+        execute active tab of window 1 javascript "document.querySelector('ytd-video-renderer a#video-title, ytd-grid-video-renderer a#video-title').click();"
+    end tell
+    '''
+    _run_applescript(script)
+    return f"🚀 Searching for '{query}' and playing the first result for you, Boss!"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -371,6 +391,7 @@ TOOL_REGISTRY = {
     "get_system_info":   get_system_info,
     "manage_chrome_tab": manage_chrome_tab,
     "send_whatsapp":     send_whatsapp_message,
+    "play_youtube":      play_youtube_video,
 }
 
 TOOL_DESCRIPTIONS = """
@@ -378,6 +399,7 @@ Available tools (you can call ONE per response, JSON only):
 - open_application(app_name)       → Open a Mac app (Chrome, Spotify, VS Code, etc.)
 - search_google(query)             → Search Google in Chrome
 - search_youtube(query)            → Search YouTube in Chrome
+- play_youtube(query)             → Search AND automatically play the first video on YouTube
 - open_website(url)                → Open any URL in Chrome
 - search_chrome(query, platform)   → Smart search: platform = "google" | "youtube" | any URL
 - get_battery()                    → Check battery level
@@ -393,6 +415,7 @@ Available tools (you can call ONE per response, JSON only):
 - manage_chrome_tab(action, value) → Control CURRENT Chrome tab. Actions: 'search_youtube', 'search_google', 'open_url', 'refresh', 'close', 'back', 'forward'. Use 'value' for searches/URLs.
 - send_whatsapp(contact, message)  → Send message to contact on WhatsApp app.
 
+Note: Always prioritize 'play_youtube' if the user asks to play a song or video.
 Note: Always prioritize 'open_application' for native Mac apps (like Crunchyroll, Spotify, VS Code) if the user implies they have the app installed.
 
 If a task needs a tool, respond ONLY with valid JSON in this exact format:
