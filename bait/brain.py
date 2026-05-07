@@ -103,17 +103,23 @@ def classify_intent(user_message: str) -> str:
 
 def _extract_json(text: str) -> Optional[dict]:
     """Extract the first JSON object from a response string."""
+    # Clean up common model artifacts
+    text = text.strip()
+    if text.startswith("```"):
+        # Remove markdown code blocks
+        text = re.sub(r'^```[a-z]*\n', '', text)
+        text = re.sub(r'\n```$', '', text)
+    
     try:
         # Direct parse
         return json.loads(text)
     except json.JSONDecodeError:
         pass
+
     # Find embedded JSON (outermost match)
     match = re.search(r'(\{.*\})', text, re.DOTALL)
     if match:
         try:
-            # Try to parse the match. If it's still not valid, 
-            # it might be too greedy, but for tool calls it's usually correct.
             return json.loads(match.group(1))
         except json.JSONDecodeError:
             pass
@@ -126,6 +132,7 @@ def _execute_tool_call(tool_name: str, args: dict) -> str:
     if fn is None:
         return f"⚠️ Unknown tool: {tool_name}"
     try:
+        print(f"[BAIT] Executing tool: {tool_name}({args})")
         return fn(**args)
     except Exception as e:
         return f"⚠️ Tool '{tool_name}' failed: {e}"
@@ -158,11 +165,13 @@ class BAITBrain:
         """
         # Step 1: Classify intent with the fastest model
         intent = classify_intent(user_message)
+        print(f"[BAIT] Intent: {intent}")
 
         if intent == "action":
             # Step 2: Use Groq llama3-70b to decide which tool to call
             messages = self._build_executor_messages(user_message)
             raw_response = _call_groq(MODELS["executor"], messages, temperature=0.2)
+            print(f"[BAIT] Raw Action Response: {raw_response}")
 
             # Step 3: Check if the response is a tool call (JSON)
             tool_call = _extract_json(raw_response)
@@ -204,10 +213,18 @@ class BAITBrain:
                     history_text += f"{role}: {turn['content']}\n"
                 history_text += f"User: {user_message}"
                 bait_reply = _call_gemini(history_text)
+                print(f"[BAIT] Chat Response (Gemini): {bait_reply}")
             except Exception:
                 # Fallback to Groq if Gemini fails
                 messages = self._build_executor_messages(user_message)
                 bait_reply = _call_groq(MODELS["executor"], messages, temperature=0.7)
+                print(f"[BAIT] Chat Response (Groq Fallback): {bait_reply}")
+
+        # Update history
+        self.history.append({"role": "user",      "content": user_message})
+        self.history.append({"role": "assistant",  "content": bait_reply})
+
+        return bait_reply
 
         # Update history
         self.history.append({"role": "user",      "content": user_message})
