@@ -43,8 +43,10 @@ def _open_url_in_chrome(url: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def open_application(app_name: str) -> str:
-    """Open a macOS application by name."""
-    # Normalize common aliases
+    """Open a macOS application by name with intelligent fallbacks."""
+    app_lower = app_name.lower().strip()
+    
+    # 1. App Aliases
     aliases = {
         "chrome":        "Google Chrome",
         "google chrome": "Google Chrome",
@@ -74,16 +76,34 @@ def open_application(app_name: str) -> str:
         "crunchyroll":   "Crunchyroll",
         "netflix":       "Netflix",
     }
-    resolved = aliases.get(app_name.lower().strip(), app_name)
+    
+    # 2. Web Redirects (Avoid Spotlight for known web services if app fails)
+    web_services = {
+        "youtube": "https://www.youtube.com",
+        "netflix": "https://www.netflix.com",
+        "crunchyroll": "https://www.crunchyroll.com",
+        "chatgpt": "https://chatgpt.com",
+        "gemini": "https://gemini.google.com",
+    }
+
+    resolved = aliases.get(app_lower, app_name)
+    
+    # Step 1: Try direct 'open' command
     result = subprocess.run(["open", "-a", resolved], capture_output=True, text=True)
     if result.returncode == 0:
         return f"✅ Opened {resolved}."
-    else:
-        # Try fuzzy search with spotlight
-        _run_applescript(f'tell application "System Events" to keystroke space using command down')
-        time.sleep(0.4)
-        _run_applescript(f'tell application "System Events" to keystroke "{resolved}"')
-        return f"⚠️ Tried to open '{resolved}' via Spotlight. (Direct launch failed.)"
+    
+    # Step 2: If direct open fails, check if it's a known web service
+    if app_lower in web_services:
+        return open_website(web_services[app_lower])
+
+    # Step 3: Final fallback: Spotlight search + 'Return' key
+    _run_applescript('tell application "System Events" to keystroke space using command down')
+    time.sleep(0.4)
+    _run_applescript(f'tell application "System Events" to keystroke "{resolved}"')
+    time.sleep(0.6)
+    _run_applescript('tell application "System Events" to key code 36') # 36 is Return
+    return f"⚠️ Tried to open '{resolved}' via Spotlight. (Direct launch failed.)"
 
 
 def search_google(query: str) -> str:
@@ -253,6 +273,34 @@ def manage_chrome_tab(action: str, value: str = "") -> str:
     return f"Unknown action: {action}"
 
 
+def send_whatsapp_message(contact: str, message: str) -> str:
+    """
+    Send a WhatsApp message to a contact using the native macOS app.
+    It searches for the contact name and types the message.
+    """
+    # Escaping quotes for AppleScript
+    safe_contact = contact.replace('"', '\\"')
+    safe_message = message.replace('"', '\\"')
+    
+    script = f'''
+    tell application "WhatsApp" to activate
+    delay 0.8
+    tell application "System Events" to tell process "WhatsApp"
+        keystroke "n" using command down -- New chat
+        delay 0.5
+        keystroke "{safe_contact}"
+        delay 1.0
+        keystroke return
+        delay 0.5
+        keystroke "{safe_message}"
+        delay 0.3
+        keystroke return
+    end tell
+    '''
+    _run_applescript(script)
+    return f"✅ WhatsApp message sent to {safe_contact}: '{safe_message}'"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # TOOL REGISTRY  (used by brain.py to tell the LLM what tools exist)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +322,7 @@ TOOL_REGISTRY = {
     "get_time":          get_current_time,
     "get_system_info":   get_system_info,
     "manage_chrome_tab": manage_chrome_tab,
+    "send_whatsapp":     send_whatsapp_message,
 }
 
 TOOL_DESCRIPTIONS = """
@@ -294,6 +343,7 @@ Available tools (you can call ONE per response, JSON only):
 - get_time()                       → Current date & time
 - get_system_info()                → macOS version info
 - manage_chrome_tab(action, value) → Control CURRENT Chrome tab. Actions: 'search_youtube', 'search_google', 'open_url', 'refresh', 'close', 'back', 'forward'. Use 'value' for searches/URLs.
+- send_whatsapp(contact, message)  → Send message to contact on WhatsApp app.
 
 Note: Always prioritize 'open_application' for native Mac apps (like Crunchyroll, Spotify, VS Code) if the user implies they have the app installed.
 
