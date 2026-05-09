@@ -96,13 +96,15 @@ Classify the user message as ONE of these two categories:
    - "type 'hello world'"
    - "close spotify"
 
-2. "chat" → The user is just TALKING, asking a general question, or seeking information.
+2. "chat" → The user is just TALKING, asking a general question, seeking facts, or making small talk.
    Examples:
    - "hello"
-   - "how are you?"
-   - "tell me a joke"
-   - "what is the capital of France?"
    - "who are you?"
+   - "who is the prime minister of india?"
+   - "tell me a joke"
+   - "what is the capital of france?"
+   - "how is the weather?" (if no weather tool is listed)
+   - "thank you"
 
 Respond with ONLY one word: action OR chat"""
 

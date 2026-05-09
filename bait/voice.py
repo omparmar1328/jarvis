@@ -45,8 +45,10 @@ def speak(text: str, blocking: bool = True) -> None:
     Falls back to macOS 'say' command if ElevenLabs is unavailable.
     """
     global _active_play_process
+    print(f"🔊 BAIT Speaking: {text}")
     
     if not ELEVENLABS_API_KEY:
+        print("⚠️ No ElevenLabs API Key, falling back to system 'say'")
         _fallback_speak(text)
         return
 
@@ -79,12 +81,15 @@ def speak(text: str, blocking: bool = True) -> None:
                             tmp.write(chunk)
                         tmp_path = tmp.name
                     
+                    print(f"DEBUG: Playing audio via afplay from {tmp_path}")
                     _active_play_process = subprocess.Popen(["afplay", tmp_path])
                     _active_play_process.wait()
                     os.unlink(tmp_path)
                 else:
+                    print(f"❌ ElevenLabs Error: {response.status_code} - {response.text}")
                     _fallback_speak(text)
-            except Exception:
+            except Exception as e:
+                print(f"💥 Speak Error: {e}")
                 _fallback_speak(text)
 
     if blocking:
@@ -138,17 +143,21 @@ def listen(timeout: int = 8, phrase_limit: int = 12) -> Optional[str]:
 def is_wake_word(text: str, wake_words: Optional[List[str]] = None) -> bool:
     """Check if transcribed text starts with a wake word."""
     if wake_words is None:
-        wake_words = ["hey bait", "bait", "ok bait", "okay bait"]
-    text_lower = text.lower().strip()
-    return any(text_lower.startswith(w) for w in wake_words)
-
+        wake_words = ["hey bait", "bait", "wake up"]
+    
+    text_lower = text.lower()
+    for w in wake_words:
+        if text_lower.startswith(w):
+            return True
+    return False
 
 def strip_wake_word(text: str, wake_words: Optional[List[str]] = None) -> str:
-    """Remove the wake word prefix from the command."""
+    """Remove the wake word from the start of the text."""
     if wake_words is None:
-        wake_words = ["hey bait", "okay bait", "ok bait", "bait"]
-    text_lower = text.lower().strip()
-    for w in sorted(wake_words, key=len, reverse=True):
+        wake_words = ["hey bait", "bait", "wake up"]
+    
+    text_lower = text.lower()
+    for w in wake_words:
         if text_lower.startswith(w):
-            return text[len(w):].strip(" ,.")
-    return text
+            return text[len(w):].strip(", ").strip()
+    return text.strip()
