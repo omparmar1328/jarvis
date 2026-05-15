@@ -70,16 +70,38 @@ function startInternalServer() {
 function startPythonBackend() {
   log('Initializing Python Brain...');
   const isDev = !app.isPackaged;
-  let serverPath;
+  const rootDir = path.join(__dirname, '..');
+  
+  // Feature: Kill any existing process on port 8000 to prevent 'Address already in use'
+  try {
+    log('Checking for existing processes on port 8000...');
+    execSync('lsof -ti:8000 | xargs kill -9', { stdio: 'ignore' });
+    log('Port 8000 cleared.');
+  } catch (e) {
+    // No process found, which is fine
+  }
 
   if (isDev) {
-    serverPath = path.join(__dirname, '..', 'dist', 'server', 'server');
-  } else {
-    serverPath = path.join(process.resourcesPath, 'server', 'server');
-    if (!fs.existsSync(serverPath)) {
-      const altPath = path.join(process.resourcesPath, 'server');
-      if (fs.existsSync(altPath)) serverPath = altPath;
+    const pythonScript = path.join(rootDir, 'server.py');
+    log(`Dev Mode: Launching Brain via python3 ${pythonScript}`);
+    
+    try {
+      pythonProcess = spawn('python3', [pythonScript], {
+        stdio: 'inherit',
+        env: { ...process.env, PYTHONUNBUFFERED: '1' }
+      });
+      log('Brain script started successfully.');
+    } catch (e) {
+      log(`EXCEPTION starting Python: ${e.message}`);
     }
+    return;
+  }
+
+  // Packaged production path
+  let serverPath = path.join(process.resourcesPath, 'server', 'server');
+  if (!fs.existsSync(serverPath)) {
+    const altPath = path.join(process.resourcesPath, 'server');
+    if (fs.existsSync(altPath)) serverPath = altPath;
   }
 
   log(`Resolved Brain Path: ${serverPath}`);
@@ -91,7 +113,7 @@ function startPythonBackend() {
         stdio: 'inherit',
         env: { ...process.env, PYTHONUNBUFFERED: '1' }
       });
-      log('Brain process spawned successfully.');
+      log('Brain binary spawned successfully.');
     } else {
       log('ERROR: Brain binary missing!');
     }

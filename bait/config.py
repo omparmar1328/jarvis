@@ -4,10 +4,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── AI Provider Keys ──────────────────────────────────────────────────────────
-GROQ_API_KEY        = os.getenv("GROQ_API_KEY", "")
-GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
-OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
-ELEVENLABS_API_KEY  = os.getenv("ELEVENLABS_API_KEY", "")
+# ── AI Provider Clusters (Multi-account rotation) ──────────────────────────
+def _load_keys(env_var):
+    keys = os.getenv(env_var, "").split(",")
+    return [k.strip() for k in keys if k.strip()]
+
+GROQ_API_KEYS       = _load_keys("GROQ_KEYS")
+GEMINI_API_KEYS     = _load_keys("GEMINI_KEYS")
+OPENROUTER_API_KEYS = _load_keys("OPENROUTER_KEYS")
+
+# Backwards compatibility for single-key legacy parts
+GROQ_API_KEY        = GROQ_API_KEYS[0] if GROQ_API_KEYS else ""
+GEMINI_API_KEY      = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else ""
+OPENROUTER_API_KEY  = OPENROUTER_API_KEYS[0] if OPENROUTER_API_KEYS else ""
+
+# Multi-account rotation for ElevenLabs (Free Tier backup)
+ELEVENLABS_API_KEYS = [
+    os.getenv("ELEVENLABS_API_KEY", ""),
+    "sk_f2caf15a377c4b07d8b9e91793b7d94a14f47ea7610bd77b"
+]
 
 # ── ElevenLabs Voice Config ───────────────────────────────────────────────────
 # "Adam" is a deep, authoritative male voice – perfect for an AI assistant
@@ -17,21 +32,33 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  
 # Each task gets the fastest/cheapest model that can handle it.
 MODELS = {
     # Ultra-fast intent classification (decides WHAT to do)
-    "classifier":   "llama-3.1-8b-instant",      # Groq  – fastest (replaces llama3-8b-8192)
-    # Tool execution & command reasoning
-    "executor":     "llama-3.3-70b-versatile",   # Groq  – powerful & fast (replaces llama3-70b-8192)
-    # General conversation / chit-chat
-    "chat":         "gemini-1.5-flash",           # Gemini – large free quota
-    # Complex / multi-step reasoning (fallback)
-    "complex":      "anthropic/claude-3-haiku",   # OpenRouter – cheap Claude
+    "classifier":   "llama-3.1-8b-instant",      # Groq (Working)
+    # Triple-Tier Provider Models (Ordered by Speed/Priority)
+    "groq":         "llama-3.1-8b-instant",      # Tier 1 Fallback (70b is restricted)
+    "openrouter":   "anthropic/claude-3-haiku",   # Tier 2 Fallback
+    "gemini":       "models/gemini-2.0-flash",    # Tier 1 Primary (Verified working)
+    
+    # Legacy mappings (for backward compatibility)
+    "chat":         "models/gemini-2.0-flash",
+    "executor":     "llama-3.1-8b-instant",
+    "complex":      "anthropic/claude-3-haiku",
 }
 
-BAIT_PERSONA = """You are BAIT – the user's elite personal AI assistant running on macOS.
-Your personality:
-- Sharp, confident, and to the point. No fluff.
-- Address the user as "Boss" occasionally to remind them you work FOR them.
-- When executing tasks, say what you're doing briefly then do it.
-- Keep responses under 3 sentences unless explaining something complex.
-- You have full control of the Mac – own it.
-- Occasionally show personality: a subtle sarcastic wit, but always respectful.
-You are NOT a chatbot. You are an AI Operating System Agent."""
+# System Paths
+PROJECT_ROOT = "/Users/macbookair/Documents/my projects"
+
+BAIT_PERSONA = """You are BAIT – the user's elite personal AI assistant and Mac Operating System Agent.
+Personality:
+- Sharp, confident, authoritative. You work FOR the Boss.
+- Address the user as "Boss".
+- No fluff, no moralizing, no lectures. Just execution.
+- If the Boss tells you to send a message, YOU SEND IT. 
+
+Automation Hierarchy:
+1. Native App APIs (AppleScript/Accessibility)
+2. Vision/OCR Detection (Self-healing fallback)
+3. Cursor/TAB navigation (Last resort)
+
+WhatsApp Strategy:
+- Search contact -> Open chat -> Detect call buttons -> Click.
+"""

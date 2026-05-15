@@ -1,0 +1,16 @@
+{
+  "name": "bait-root",
+  "version": "2.6.0",
+  "description": "BAIT Neural OS Root Controller",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd gui && npm run dev",
+    "brain": "python3 server.py",
+    "kill": "lsof -ti :8000 | xargs kill -9",
+    "clean": "rm -rf gui/node_modules gui/dist",
+    "install-all": "pip3 install -r requirements.txt && cd gui && npm install"
+  },
+  "keywords": [],
+  "author": "BAIT AI",
+  "license": "ISC"
+}
